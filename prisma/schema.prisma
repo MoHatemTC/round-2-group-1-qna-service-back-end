@@ -1,0 +1,52 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Document {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  source      String
+  sourceType  SourceType
+  cohort      String?    @db.VarChar(100)
+  metadata    Json?      @db.JsonB
+  content     String?    @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  chunks      Chunk[]
+
+  @@unique([source, title])
+  @@map("documents")
+}
+
+model Chunk {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String   @db.Uuid
+  content      String   @db.Text
+  contentHash  String   @unique @db.VarChar(64)
+  embedding    Json?    @db.JsonB
+  embeddingVector Unsupported("vector(1536)")?
+  chunkIndex   Int      @default(0)
+  metadata     Json?    @db.JsonB
+  
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([contentHash])
+  @@index([documentId])
+  @@map("chunks")
+}
+
+enum SourceType {
+  FAQ
+  ONBOARDING
+  SCHEDULE
+  PROGRAM_DOC
+  OTHER
+}
