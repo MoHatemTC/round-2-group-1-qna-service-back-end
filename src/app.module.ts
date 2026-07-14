@@ -8,7 +8,6 @@ import { EmbeddingsModule } from './modules/embeddings/embeddings.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { SearchModule } from './modules/search/dto/search.module';
 import { NotificationsModule } from './notifications/notification.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
