@@ -1,45 +1,52 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { PrismaService } from '../common/prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
-import { NotificationStatus, NotificationType } from './notification.entity';
 
 @Injectable()
 export class NotificationsScheduler {
   private readonly logger = new Logger(NotificationsScheduler.name);
-  private isProcessing = false;
 
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
-  async handlePendingNotifications() {
-    if (this.isProcessing) {
-      this.logger.warn('Previous cron execution is still running. Skipping to prevent overlap.');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.logger.log('Checking for PENDING notifications in the queue...');
+  async handleNotificationCron() {
+    this.logger.log('Scanning database for due notifications...');
 
     try {
-      const mockPendingNotifications = [
-        {
-          id: '1',
-          recipient: 'user@example.com',
-          type: NotificationType.EMAIL,
-          payload: {},
-          dedupKey: 'msg_123',
-          status: NotificationStatus.PENDING,
-          attempts: 0,
-          createdAt: new Date(),
+      const dueNotifications = await this.prisma.notification.findMany({
+        where: {
+          status: { in: ['PENDING', 'FAILED'] },
+          OR: [
+            { retryAfter: null },
+            { retryAfter: { lte: new Date() } },
+          ],
         },
-      ];
+        select: {
+          id: true,
+        },
+        take: 50,
+      });
 
-      for (const notification of mockPendingNotifications) {
-        await this.notificationsService.processNotification(notification.id);      }
-    } catch (error: any) {
-      this.logger.error('Failed to process notification batch', error.stack);
-    } finally {
-      this.isProcessing = false;
+      if (dueNotifications.length === 0) {
+        this.logger.log('No due notifications found.');
+        return;
+      }
+
+      this.logger.log(`Found ${dueNotifications.length} notifications to process.`);
+
+      await Promise.all(
+        dueNotifications.map((notif) =>
+          this.notificationsService.processNotification(notif.id),
+        ),
+      );
+
+      this.logger.log('Batch processing completed for this cycle.');
+    } catch (error) {
+      this.logger.error('Error occurred during notification cron cycle', error);
     }
   }
 }
