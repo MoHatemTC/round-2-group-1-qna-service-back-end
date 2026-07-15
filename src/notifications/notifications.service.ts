@@ -1,52 +1,68 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { NotificationsService } from './notifications.service';
-
 @Injectable()
-export class NotificationsScheduler {
-  private readonly logger = new Logger(NotificationsScheduler.name);
+export class NotificationsService {
+  constructor(private prisma: PrismaService) {}
 
-  constructor(
-    private prisma: PrismaService,
-    private notificationsService: NotificationsService,
-  ) {}
-
-  @Cron(CronExpression.EVERY_MINUTE)
-  async handleNotificationCron() {
-    this.logger.log('Scanning database for due notifications...');
-
+  async processNotification(notificationId: string) {
     try {
-      const dueNotifications = await this.prisma.notification.findMany({
+      const notification = await this.prisma.notification.update({
         where: {
+          id: notificationId,
           status: { in: ['PENDING', 'FAILED'] },
-          OR: [
-            { retryAfter: null },
-            { retryAfter: { lte: new Date() } },
-          ],
         },
-        select: {
-          id: true,
+        data: {
+          status: 'PROCESSING',
         },
-        take: 50,
       });
 
-      if (dueNotifications.length === 0) {
-        this.logger.log('No due notifications found.');
-        return;
-      }
-
-      this.logger.log(`Found ${dueNotifications.length} notifications to process.`);
-
-      await Promise.all(
-        dueNotifications.map((notif) =>
-          this.notificationsService.processNotification(notif.id),
-        ),
-      );
-
-      this.logger.log('Batch processing completed for this cycle.');
+      return await this.deliverWithRetry(notification);
     } catch (error) {
-      this.logger.error('Error occurred during notification cron cycle', error);
+      return;
+    }
+  }
+
+  private async deliverWithRetry(notification: any) {
+    const MAX_ATTEMPTS = 3;
+    const currentAttempt = notification.attempts + 1;
+
+    try {
+      
+      return await this.prisma.notification.update({
+        where: { id: notification.id },
+        data: {
+          status: 'SENT',
+          attempts: currentAttempt,
+        },
+      });
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown delivery error';
+
+      if (currentAttempt >= MAX_ATTEMPTS) {
+        return await this.prisma.notification.update({
+          where: { id: notification.id },
+          data: {
+            status: 'FAILED',
+            attempts: currentAttempt,
+            lastError: `Max attempts reached. Last error: ${errorMessage}`,
+          },
+        });
+      } else {
+        const delayInSeconds = Math.pow(2, currentAttempt);
+        const nextRetryDate = new Date();
+        nextRetryDate.setSeconds(nextRetryDate.getSeconds() + delayInSeconds);
+
+        
+        return await this.prisma.notification.update({
+          where: { id: notification.id },
+          data: {
+            status: 'FAILED',
+            attempts: currentAttempt,
+            lastError: errorMessage,
+            retryAfter: nextRetryDate,
+          },
+        });
+      }
     }
   }
 }
