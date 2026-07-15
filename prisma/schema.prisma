@@ -43,16 +43,26 @@ model Chunk {
   @@map("chunks")
 }
 
-model Notification {
-  id        String   @id @default(cuid())
-  dedupKey  String   @unique
-  status    String   
-  attempts  Int      @default(0)
-  lastError String?
-  sentAt    DateTime?
-  createdAt DateTime @default(now())
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
 }
 
+
+model Notification {
+  id           String             @id @default(uuid())
+  recipient    String             
+  type         NotificationType   
+  payload      String             
+  status       String             // PENDING, SENT, FAILED, PROCESSING
+  attempts     Int                @default(0)
+  lastError    String?
+  dedupKey     String             @unique
+  retryAfter   DateTime?          
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
 enum SourceType {
   FAQ
   ONBOARDING
