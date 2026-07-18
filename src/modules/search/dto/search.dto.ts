@@ -1,4 +1,3 @@
-// src/modules/search/dto/search.dto.ts
 import {
   IsOptional,
   IsString,

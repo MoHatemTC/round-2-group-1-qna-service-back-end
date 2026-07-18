@@ -1,0 +1,7 @@
+export enum SourceType {
+  FAQ = 'FAQ',
+  ONBOARDING = 'ONBOARDING',
+  SCHEDULE = 'SCHEDULE',
+  PROGRAM_DOC = 'PROGRAM_DOC',
+  OTHER = 'OTHER',
+}

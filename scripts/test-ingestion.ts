@@ -1,9 +1,8 @@
-// scripts/test-ingestion.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { IngestionService } from '../src/modules/ingestion/ingestion.service';
 import { SearchService } from '../src/modules/search/dto/search.service';
-import { SourceType } from '@prisma/client';
+import { SourceType } from '../src/common/enums/source-type.enum';
 
 async function testIngestion() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -11,8 +10,6 @@ async function testIngestion() {
   const searchService = app.get(SearchService);
 
   try {
-    console.log('🧪 Testing ingestion...\n');
-
     const testDocs = [
       {
         title: 'Program Onboarding Guide',
@@ -47,7 +44,7 @@ async function testIngestion() {
         4:00 PM - Review Session
         5:00 PM - End of Day`,
         source: 'schedule.pdf',
-        sourceType: SourceType.SCHEDULE,
+        sourceType: SourceType.SCHEDULE, 
         cohort: 'Cohort-2026',
       },
     ];
@@ -61,10 +58,7 @@ async function testIngestion() {
         doc.cohort,
         { test: true },
       );
-      console.log(`✅ ${doc.title}:`, result);
     }
-
-    console.log('\n🔍 Testing search...\n');
 
     const queries = [
       'program schedule',
@@ -74,16 +68,8 @@ async function testIngestion() {
 
     for (const query of queries) {
       const results = await searchService.search({ query, limit: 5 });
-      console.log(`\n📝 Query: "${query}"`);
-      console.log(`Found ${results.length} results:`);
-      results.forEach((r: any, i: number) => {
-        console.log(
-          `  ${i + 1}. [${(r.similarity * 100).toFixed(1)}%] ${r.title}`,
-        );
-      });
+      results.forEach((r: any, i: number) => {});
     }
-  } catch (error) {
-    console.error('❌ Test failed:', error);
   } finally {
     await app.close();
   }
