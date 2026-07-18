@@ -91,7 +91,7 @@ export class FileParserService {
       }
 
       this.logger.log(
-        `✅ File parsed: ${file.originalname} (${cleanedContent.length} chars)`,
+        `File parsed: ${file.originalname} (${cleanedContent.length} chars)`,
       );
       return cleanedContent;
     } catch (error) {

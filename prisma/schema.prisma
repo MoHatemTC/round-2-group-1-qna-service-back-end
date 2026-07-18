@@ -74,7 +74,6 @@ model Chunk {
   @@map("chunks")
 }
 
-// ✅ Quiz Module
 enum QuizStatus {
   DRAFT
   PUBLISHED

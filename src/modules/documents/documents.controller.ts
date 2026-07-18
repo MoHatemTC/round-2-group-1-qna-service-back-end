@@ -25,12 +25,6 @@ export class DocumentsController {
     @Query('sourceType') sourceType?: SourceType,
     @Query('cohort') cohort?: string,
   ) {
-    console.log('🔍 findAll called with params:', {
-      skip,
-      take,
-      sourceType,
-      cohort,
-    });
 
     try {
       const result = await this.documentsService.findAll({

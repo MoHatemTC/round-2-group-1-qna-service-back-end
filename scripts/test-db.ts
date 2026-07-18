@@ -4,7 +4,6 @@ const prisma = new PrismaClient();
 
 async function testDB() {
   try {
-    console.log('🔍 Testing database connection...');
 
     const count = await prisma.document.count();
 

@@ -53,7 +53,7 @@ export class DocumentsService {
 
       return documents;
     } catch (error) {
-      this.logger.error(`❌ Error fetching documents: ${error.message}`);
+      this.logger.error(`Error fetching documents: ${error.message}`);
 
       try {
         this.logger.log('🔄 Trying raw SQL query...');
@@ -62,11 +62,11 @@ export class DocumentsService {
           ORDER BY "created_at" DESC
         `;
         this.logger.log(
-          `✅ Raw SQL found ${(rawDocuments as any[]).length} documents`,
+          ` Raw SQL found ${(rawDocuments as any[]).length} documents`,
         );
         return rawDocuments;
       } catch (rawError) {
-        this.logger.error(`❌ Raw SQL error: ${rawError.message}`);
+        this.logger.error(`Raw SQL error: ${rawError.message}`);
         return [];
       }
     }

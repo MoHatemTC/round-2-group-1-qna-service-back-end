@@ -48,7 +48,93 @@ export class IngestionService {
       throw new BadRequestException('Document content is empty after cleaning');
     }
 
-    // Chunks
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(cleanContent)
+      .digest('hex');
+
+    const existingDoc = await this.prisma.document.findUnique({
+      where: {
+        source_title: {
+          source,
+          title,
+        },
+      },
+      include: {
+        chunks: {
+          select: {
+            contentHash: true,
+          },
+        },
+      },
+    });
+
+    if (existingDoc) {
+      const hasSameContent = existingDoc.chunks.some(
+        (chunk) => chunk.contentHash === contentHash,
+      );
+
+      if (hasSameContent) {
+        this.logger.log(`Document "${title}" already exists with same content, skipping`);
+        return {
+          documentId: existingDoc.id,
+          chunksProcessed: existingDoc.chunks.length,
+          isUpdate: false,
+        };
+      }
+
+      this.logger.log(`Document "${title}" exists but content changed, updating...`);
+
+      return await this.prisma.$transaction(async (tx: any) => {
+
+        await tx.chunk.deleteMany({
+          where: { documentId: existingDoc.id },
+        });
+
+
+        await tx.document.update({
+          where: { id: existingDoc.id },
+          data: {
+            content: cleanContent,
+            metadata: metadata || existingDoc.metadata || undefined,
+            cohort: cohort || existingDoc.cohort,
+          },
+        });
+
+        const chunks = this.splitIntoChunks(cleanContent);
+        const chunkTexts = chunks.map((c) => c.text);
+        const embeddings = await this.embeddingsService.generateEmbeddings(chunkTexts);
+
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const embedding = embeddings[i] || [];
+
+          await tx.chunk.create({
+            data: {
+              documentId: existingDoc.id,
+              content: chunk.text,
+              contentHash: crypto
+                .createHash('sha256')
+                .update(chunk.text)
+                .digest('hex'),
+              chunkIndex: chunk.index,
+              embedding: embedding,
+            },
+          });
+        }
+
+        this.logger.log(` Updated ${chunks.length} chunks for document ${existingDoc.id}`);
+
+        return {
+          documentId: existingDoc.id,
+          chunksProcessed: chunks.length,
+          isUpdate: true,
+        };
+      });
+    }
+
+    this.logger.log(`Creating new document "${title}"`);
+
     const document = await this.prisma.document.create({
       data: {
         title,
@@ -56,23 +142,20 @@ export class IngestionService {
         sourceType,
         cohort,
         content: cleanContent,
-        metadata: metadata || {},
+        metadata: metadata || undefined,
       },
     });
 
-    this.logger.log(`✅ Document created: ${document.id}`);
+    this.logger.log(` Document created: ${document.id}`);
 
     try {
-      // ✅ محاولة Chunking و Embedding
       const chunks = this.splitIntoChunks(cleanContent);
-      this.logger.log(`📄 Split into ${chunks.length} chunks`);
+      this.logger.log(` Split into ${chunks.length} chunks`);
 
       const chunkTexts = chunks.map((c) => c.text);
-      const embeddings =
-        await this.embeddingsService.generateEmbeddings(chunkTexts);
-      this.logger.log(`✅ Generated ${embeddings.length} embeddings`);
+      const embeddings = await this.embeddingsService.generateEmbeddings(chunkTexts);
+      this.logger.log(` Generated ${embeddings.length} embeddings`);
 
-      // ✅ حفظ الـ Chunks
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const embedding = embeddings[i] || [];
@@ -91,9 +174,7 @@ export class IngestionService {
         });
       }
 
-      this.logger.log(
-        `✅ Saved ${chunks.length} chunks for document ${document.id}`,
-      );
+      this.logger.log(` Saved ${chunks.length} chunks for document ${document.id}`);
 
       return {
         documentId: document.id,
@@ -101,18 +182,13 @@ export class IngestionService {
         isUpdate: false,
       };
     } catch (error) {
-      // ✅ لو فشل Chunking أو Embedding، احذف المستند
-      this.logger.error(`❌ Failed to process chunks: ${error.message}`);
+      this.logger.error(` Failed to process chunks: ${error.message}`);
       await this.prisma.document.delete({ where: { id: document.id } });
-      throw new BadRequestException(
-        `Failed to process document: ${error.message}`,
-      );
+      throw new BadRequestException(`Failed to process document: ${error.message}`);
     }
   }
 
-  private splitIntoChunks(
-    content: string,
-  ): Array<{ text: string; index: number }> {
+  private splitIntoChunks(content: string): Array<{ text: string; index: number }> {
     const chunks: Array<{ text: string; index: number }> = [];
 
     const paragraphs = content.split(/\n\s*\n/);
@@ -123,9 +199,7 @@ export class IngestionService {
       const trimmedParagraph = paragraph.trim();
       if (!trimmedParagraph) continue;
 
-      const sentences = trimmedParagraph.match(/[^.!?]+[.!?]+/g) || [
-        trimmedParagraph,
-      ];
+      const sentences = trimmedParagraph.match(/[^.!?]+[.!?]+/g) || [trimmedParagraph];
 
       for (const sentence of sentences) {
         const trimmedSentence = sentence.trim();

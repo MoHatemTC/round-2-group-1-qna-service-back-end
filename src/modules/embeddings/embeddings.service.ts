@@ -8,7 +8,7 @@ export class EmbeddingsService {
 
   constructor(private configService: ConfigService) {
     this.dimensions = this.configService.get('EMBEDDING_DIMENSIONS', 1536);
-    this.logger.warn('⚠️ Using MOCK embeddings - NOT for production!');
+    this.logger.warn(' Using MOCK embeddings - NOT for production!');
   }
 
   async generateEmbedding(text: string): Promise<number[]> {

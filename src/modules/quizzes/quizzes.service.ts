@@ -60,7 +60,6 @@ export class QuizzesService {
       throw new ForbiddenException('Only draft quizzes can be edited');
     }
 
-    //  PartialType  
     const updateData: any = {};
 
     if (dto.title !== undefined) updateData.title = dto.title;
@@ -68,7 +67,6 @@ export class QuizzesService {
     if (dto.duration !== undefined) updateData.duration = dto.duration;
     if (dto.passScore !== undefined) updateData.passScore = dto.passScore;
 
-    // Validate dates if provided
     if (dto.openDate !== undefined || dto.closeDate !== undefined) {
       const openDate = dto.openDate ? new Date(dto.openDate) : quiz.openDate;
       const closeDate = dto.closeDate
@@ -81,7 +79,6 @@ export class QuizzesService {
       if (dto.closeDate !== undefined) updateData.closeDate = closeDate;
     }
 
-    //  Handle publish helper
     if (dto.publish === true) {
       updateData.status = QuizStatus.PUBLISHED;
     }
