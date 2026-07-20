@@ -12,6 +12,8 @@ export class StudentQuizzesController {
 
   @Get()
   getDashboard(@Headers('x-student-id') studentId?: string) {
+    // TODO(Sprint 2 / Auth): replace with real session/JWT from Slot 1.
+    // x-student-id + MOCK_STUDENT_ID is a dev-only shim — not production auth.
     const resolvedStudentId = studentId ?? process.env.MOCK_STUDENT_ID;
 
     if (!resolvedStudentId) {

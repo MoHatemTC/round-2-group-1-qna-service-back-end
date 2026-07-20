@@ -59,7 +59,7 @@ export class StudentQuizzesService {
           description: quiz.description ?? '',
           closesAt: quiz.closesAt.toISOString(),
           studentState,
-          score: attempt?.score ? Number(attempt.score) : null,
+          score: attempt?.score != null ? Number(attempt.score) : null,
           canStart,
           blockedReason,
         };
