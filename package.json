@@ -24,6 +24,9 @@
     "generate": "prisma generate",
     "test:ingestion": "ts-node scripts/test-ingestion.ts"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
