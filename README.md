@@ -1,98 +1,122 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# QnA Service — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + PostgreSQL + Prisma API for Sprint 1 (RAG/knowledge base + **Student Quiz Access**).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Prerequisites
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+- Node.js 20+
+- PostgreSQL running locally
+- A database created (e.g. `qna`)
 
 ```bash
-$ npm install
+createdb qna   # if it does not exist yet
 ```
 
-## Compile and run the project
+---
+
+## Initial setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+cp .env.example .env   # then edit values
+npm run migrate:dev    # apply Prisma migrations
+npx prisma db seed     # demo student + quizzes
+npm run start:dev
 ```
 
-## Run tests
+App runs at **http://localhost:3000** (override with `PORT` in `.env`).
+
+---
+
+## Environment (`.env`)
+
+| Variable | Required | Description |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Yes | PostgreSQL connection string, e.g. `postgresql://USER@localhost:5432/qna?schema=public` |
+| `MOCK_STUDENT_ID` | Yes* | UUID used when no `x-student-id` header is sent. Must match seed student (see below). |
+| `PORT` | No | HTTP port (default `3000`) |
+| `OPENAI_API_KEY` | For RAG | Only needed for ingestion/search modules |
+
+\*Required for local dashboard testing until Auth (Slot 1) is integrated.
+
+**Seed student UUID** (fixed in `prisma/seed.ts`):
+
+```
+MOCK_STUDENT_ID=11111111-1111-1111-1111-111111111111
+```
+
+---
+
+## Database & Prisma
+
+| Command | Purpose |
+| :--- | :--- |
+| `npm run migrate:dev` | Apply migrations in dev; creates migration SQL under `prisma/migrations/` |
+| `npm run migrate:deploy` | Apply migrations in CI/production |
+| `npm run generate` | Regenerate Prisma Client after schema changes |
+| `npx prisma db seed` | Load demo data (see seed section) |
+| `npm run studio` | Open Prisma Studio GUI |
+
+After editing `prisma/schema.prisma`:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run migrate:dev -- --name describe_your_change
+npm run generate
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Seed data (`prisma/seed.ts`)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Registered in `package.json`:
+
+```json
+"prisma": { "seed": "ts-node prisma/seed.ts" }
+```
+
+Run with:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma db seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**What it creates:**
 
-## Resources
+- 1 verified student (`11111111-1111-1111-1111-111111111111`)
+- 5 quizzes enrolled to that student — 4 **Published** (dashboard states) + 1 **Draft** (hidden from API)
+- Attempts so the API returns all four `studentState` values: `Not started`, `In progress`, `Submitted`, `Closed`
 
-Check out a few resources that may come in handy when working with NestJS:
+Re-running seed **clears** quiz-related rows (students, enrollments, quizzes, attempts) and recreates them.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## Student Quiz Access API
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Mock auth until real Auth lands: header `x-student-id` or fallback to `MOCK_STUDENT_ID`.
 
-## Stay in touch
+```bash
+# uses MOCK_STUDENT_ID from .env
+curl http://localhost:3000/student/quizzes
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# explicit student
+curl -H "x-student-id: 11111111-1111-1111-1111-111111111111" \
+  http://localhost:3000/student/quizzes
+```
 
-## License
+Response: `{ "quizzes": [{ quizId, title, description, closesAt, studentState, score, canStart, blockedReason? }] }`
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Code: `src/modules/student-quizzes/`
+
+---
+
+## Scripts
+
+| Script | Description |
+| :--- | :--- |
+| `npm run start:dev` | Dev server with watch |
+| `npm run build` | `prisma generate` + Nest build |
+| `npm run start:prod` | Run compiled `dist/` |
+| `npm run test` | Unit tests |
+| `npm run lint` | ESLint |
