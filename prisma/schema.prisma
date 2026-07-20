@@ -8,6 +8,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Student {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  email       String       @unique
+  status      StudentStatus @default(VERIFIED)
+  enrollments Enrollment[]
+  attempts    Attempt[]
+}
+
+model Attempt { 
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId    String   @db.Uuid
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId String   @db.Uuid
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now()) @map("started_at")
+  submittedAt DateTime? @map("submitted_at")
+  status      AttemptStatus @default(IN_PROGRESS)
+  attemptAnswers     Json?        @db.JsonB
+  score       Decimal?
+
+  @@unique([quizId, studentId])
+}
+
+model Enrollment {
+  quizId      String           @db.Uuid
+  studentId   String           @db.Uuid
+  quiz        Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, studentId])
+}
+
+model Quiz {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  closesAt    DateTime
+  status      QuizStatus     @default(DRAFT)
+  questions   Question[]
+  enrollments Enrollment[]
+  attempts    Attempt[]
+}
+
+model Question {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId    String   @db.Uuid
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text      String
+  options     QuizOption[]
+}
+
+model QuizOption {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId    String   @db.Uuid
+  question      Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option    String
+  isCorrect Boolean  @default(false)
+}
+
 model Document {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String
@@ -43,10 +104,28 @@ model Chunk {
   @@map("chunks")
 }
 
+
+enum StudentStatus {
+  VERIFIED  
+  UNVERIFIED
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum SourceType {
   FAQ
   ONBOARDING
   SCHEDULE
   PROGRAM_DOC
   OTHER
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED
 }
