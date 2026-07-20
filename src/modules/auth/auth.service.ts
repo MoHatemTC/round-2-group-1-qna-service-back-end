@@ -49,6 +49,12 @@ export class AuthService {
 
   async register(email: string, password: string, name?: string) {
 
+    if (email === 'admin@example.com') {
+      throw new ConflictException(
+        'This email is reserved for admin. Please use a different email.',
+      );
+    }
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -74,6 +80,23 @@ export class AuthService {
 
   async createAdmin(email: string, password: string, name?: string) {
 
+    if (email !== 'admin@example.com') {
+      throw new UnauthorizedException('Only admin@example.com can be an admin');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      const updatedUser = await this.prisma.user.update({
+        where: { email },
+        data: { role: 'ADMIN' },
+      });
+      const { password: _, ...result } = updatedUser;
+      return result;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await this.prisma.user.create({
@@ -83,17 +106,6 @@ export class AuthService {
         name,
         role: 'ADMIN',
       },
-    });
-
-    const { password: _, ...result } = user;
-    return result;
-  }
-
-  async promoteToAdmin(email: string) {
-
-    const user = await this.prisma.user.update({
-      where: { email },
-      data: { role: 'ADMIN' },
     });
 
     const { password: _, ...result } = user;
