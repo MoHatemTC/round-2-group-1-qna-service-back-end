@@ -1,4 +1,5 @@
 // prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,6 +7,34 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  password  String   @db.Text
+  name      String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  documents Document[]
+  quizAttempts QuizAttempt[]
+
+  @@map("users")
+}
+
+enum SourceType {
+  FAQ
+  ONBOARDING
+  SCHEDULE
+  PROGRAM_DOC
+  OTHER
 }
 
 model Document {
@@ -20,6 +49,8 @@ model Document {
   updatedAt   DateTime   @updatedAt @map("updated_at")
   
   chunks      Chunk[]
+  userId      String?    @db.Uuid
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([source, title])
   @@map("documents")
@@ -31,7 +62,7 @@ model Chunk {
   content      String   @db.Text
   contentHash  String   @unique @db.VarChar(64)
   embedding    Json?    @db.JsonB
-  embeddingVector Unsupported("vector(1536)")?
+  //embeddingVector Unsupported("vector(1536)")?//
   chunkIndex   Int      @default(0)
   metadata     Json?    @db.JsonB
   
@@ -43,10 +74,41 @@ model Chunk {
   @@map("chunks")
 }
 
-enum SourceType {
-  FAQ
-  ONBOARDING
-  SCHEDULE
-  PROGRAM_DOC
-  OTHER
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Quiz {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  duration    Int      // minutes, must be > 0
+  openDate    DateTime
+  closeDate   DateTime
+  passScore   Int?     @default(0)
+  status      QuizStatus @default(DRAFT)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  attempts    QuizAttempt[]
+
+  @@index([status])
+  @@map("quizzes")
+}
+
+model QuizAttempt {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId      String   @db.Uuid
+  userId      String   @db.Uuid
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  score       Int?
+  
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Restrict)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+  @@map("quiz_attempts")
 }

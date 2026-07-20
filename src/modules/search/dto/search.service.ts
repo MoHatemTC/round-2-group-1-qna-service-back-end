@@ -1,4 +1,3 @@
-// src/modules/search/search.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { EmbeddingsService } from '../../../modules/embeddings/embeddings.service';
