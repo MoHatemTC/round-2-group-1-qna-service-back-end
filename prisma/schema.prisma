@@ -46,7 +46,10 @@ model Quiz {
   title       String
   description String?
   createdAt   DateTime       @default(now()) @map("created_at")
-  closesAt    DateTime
+  openDate    DateTime       @default(now()) @map("open_date")
+  duration    Int            @default(60)
+  closesAt    DateTime       @map("close_at")
+  passScore   Decimal?       @map("pass_score") @db.Decimal(5, 2)
   status      QuizStatus     @default(DRAFT)
   questions   Question[]
   enrollments Enrollment[]
@@ -58,7 +61,14 @@ model Question {
   quizId    String   @db.Uuid
   quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   text      String
+  type      QuestionType  @default(MCQ)
   options     QuizOption[]
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  OPEN_ENDED
 }
 
 model QuizOption {
