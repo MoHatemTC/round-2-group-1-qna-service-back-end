@@ -6,6 +6,7 @@ import { DocumentsModule } from './modules/documents/dto/documents.module';
 import { EmbeddingsModule } from './modules/embeddings/embeddings.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { SearchModule } from './modules/search/dto/search.module';
+import { StudentQuizzesModule } from './modules/student-quizzes/student-quizzes.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SearchModule } from './modules/search/dto/search.module';
     EmbeddingsModule,
     IngestionModule,
     SearchModule,
+    StudentQuizzesModule,
   ],
 })
 export class AppModule {}
