@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const eventBus = require('../events/eventBus');
 const { computeScore } = require('./scoring');
 
+
 class NotFoundError extends Error {}
 class AlreadySubmittedError extends Error {}
 
