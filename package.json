@@ -13,11 +13,14 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
+    "test": "node test/scoring.test.js && node test/validateQuestion.test.js",
+    "test:unit": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
@@ -36,6 +39,7 @@
     "@prisma/client": "^6.19.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "express": "^4.19.2",
     "openai": "^4.104.0",
     "pg": "^8.12.0",
     "reflect-metadata": "^0.2.0",
@@ -74,7 +78,7 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^\t.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
