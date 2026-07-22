@@ -9,3 +9,4 @@ class QuizEventBus extends EventEmitter {
 }
 
 module.exports = new QuizEventBus();
+
