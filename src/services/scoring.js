@@ -4,6 +4,7 @@ function computeScore(questionSnapshot, answers, { passMarkPercentage = null, su
     answers.map(a => [String(a.questionId), a.selectedOptionId])
   );
 
+  
   let rawScore = 0;
   let maxScore = 0;
 
