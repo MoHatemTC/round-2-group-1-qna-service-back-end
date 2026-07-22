@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@Jest/globals';
 import { validateQuiz } from './validate-quiz';
 
 describe('validateQuiz', () => {
