@@ -1,5 +1,56 @@
 @baseUrl = http://localhost:3000
-@authToken = your_jwt_token_here
+@studentId = 11111111-1111-1111-1111-111111111111
+@publishableDraftId = 22222222-2222-2222-2222-222222222222
+@invalidDraftId = 33333333-3333-3333-3333-333333333333
+@emptyDraftId = 44444444-4444-4444-4444-444444444444
+@inProgressQuizId = 55555555-5555-5555-5555-555555555555
 
-## get
+############################################
+# Sprint 1 — Student dashboard
+############################################
+
+### Student quiz list (mock auth via header)
 GET {{baseUrl}}/student/quizzes
+x-student-id: {{studentId}}
+
+############################################
+# Sprint 2 Slot 2 — Admin publish gate
+# Run: npx prisma db seed  (then start:dev)
+############################################
+
+### Admin: load publishable draft (expect isValid: true)
+GET {{baseUrl}}/admin/quizzes/{{publishableDraftId}}
+
+### Admin: load invalid draft (expect validationErrors about correct answer)
+GET {{baseUrl}}/admin/quizzes/{{invalidDraftId}}
+
+### Admin: load empty draft (expect "This quiz has no questions")
+GET {{baseUrl}}/admin/quizzes/{{emptyDraftId}}
+
+### Admin: publish valid draft (expect 200 PUBLISHED)
+PATCH {{baseUrl}}/admin/quizzes/{{publishableDraftId}}/publish
+
+### Admin: publish invalid draft (expect 400 + errors)
+PATCH {{baseUrl}}/admin/quizzes/{{invalidDraftId}}/publish
+
+### Admin: publish empty draft (expect 400 "This quiz has no questions")
+PATCH {{baseUrl}}/admin/quizzes/{{emptyDraftId}}/publish
+
+### Admin: publish again after success (idempotent — already published)
+PATCH {{baseUrl}}/admin/quizzes/{{publishableDraftId}}/publish
+
+### Admin: edit title on quiz WITH attempts (expect 200)
+PATCH {{baseUrl}}/admin/quizzes/{{inProgressQuizId}}
+Content-Type: application/json
+
+{
+  "title": "Updated In Progress Title"
+}
+
+### Admin: edit duration on quiz WITH attempts (expect 403 Duplicate message)
+PATCH {{baseUrl}}/admin/quizzes/{{inProgressQuizId}}
+Content-Type: application/json
+
+{
+  "duration": 90
+}
