@@ -61,6 +61,8 @@ model Question {
   quizId    String   @db.Uuid
   quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   text      String
+  isHidden  Boolean  @default(false) @map("is_hidden")
+  points    Decimal  @default(1)  @db.Decimal(7, 2)
   type      QuestionType  @default(MCQ)
   options     QuizOption[]
 }
