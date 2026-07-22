@@ -129,3 +129,56 @@ enum AttemptStatus {
   SUBMITTED
   AUTO_SUBMITTED
 }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+model Question {
+  id              String   @id @default(cuid())
+  quizId          String
+  text            String
+  options         Json
+  correctOptionId String
+  points          Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([quizId])
+}
+
+model Attempt {
+  id               String        @id @default(cuid())
+  studentId        String
+  quizId           String
+  status           AttemptStatus @default(IN_PROGRESS)
+  submittedAt      DateTime?
+  questionSnapshot Json?
+  score            Json?
+  answers          Answer[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([studentId, quizId])
+}
+
+model Answer {
+  id               String   @id @default(cuid())
+  attemptId        String
+  questionId       String
+  selectedOptionId String?
+  answeredAt       DateTime @default(now())
+
+  attempt Attempt @relation(fields: [attemptId], references: [id])
+
+  @@unique([attemptId, questionId])
+}
