@@ -6,6 +6,7 @@ const {
   NotFoundError,
   AlreadySubmittedError,
 } = require('../services/quizScoringService');
+
 router.put('/attempts/:attemptId/answers/:questionId', async (req, res) => {
   try {
     const { attemptId, questionId } = req.params;
