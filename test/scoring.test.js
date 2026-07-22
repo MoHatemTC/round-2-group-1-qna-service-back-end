@@ -7,6 +7,7 @@ const snapshot = [
   { questionId: 'q3', correctOptionId: 'c', points: 1 },
 ];
 
+
 // Mixed: correct, wrong, and one question never answered at all.
 {
   const answers = [
