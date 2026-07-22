@@ -10,10 +10,7 @@ import {
   QuestionTypeForValidation,
   validateQuiz,
 } from '../questions/validate-quiz';
-import {
-  AdminQuizDto,
-  PublishQuizResponseDto,
-} from './dto/admin-quiz.dto';
+import { AdminQuizDto, PublishQuizResponseDto } from './dto/admin-quiz.dto';
 import {
   ATTEMPT_LOCK_MESSAGE,
   UpdateAdminQuizDto,
@@ -113,10 +110,7 @@ export class AdminQuizzesService {
     ).filter((field) => dto[field] !== undefined);
 
     if (attemptCount > 0) {
-      const allowed: Array<keyof UpdateAdminQuizDto> = [
-        'title',
-        'description',
-      ];
+      const allowed: Array<keyof UpdateAdminQuizDto> = ['title', 'description'];
       const hasDisallowed = providedFields.some(
         (field) => !allowed.includes(field),
       );
@@ -153,14 +147,13 @@ export class AdminQuizzesService {
       return this.getQuizForAdmin(quizId);
     }
 
-    try {
-      await this.prisma.quiz.update({
-        where: { id: quizId },
-        data,
-      });
-    } catch {
+    const existing = await this.prisma.quiz.findUnique({
+      where: { id: quizId },
+    });
+    if (!existing) {
       throw new NotFoundException('Quiz not found');
     }
+    await this.prisma.quiz.update({ where: { id: quizId }, data });
 
     return this.getQuizForAdmin(quizId);
   }
