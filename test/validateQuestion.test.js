@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { validateQuestion } = require('../services/validateQuestion');
 
+
 // Valid question passes cleanly.
 {
   const { valid, errors } = validateQuestion({
