@@ -1,12 +1,17 @@
+// src/common/services/file-parser.service.ts
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class FileParserService {
   private readonly logger = new Logger(FileParserService.name);
 
   private cleanContent(content: string): string {
+
     let cleaned = content.replace(/\0/g, '');
-    cleaned = cleaned.replace(/[^\x09\x0A\x0D\x20-\x7E\x80-\uFFFF]/g, '');
+
+    cleaned = cleaned.replace(/[^\x20-\x7E\x80-\uFFFF]/g, '');
     cleaned = cleaned.replace(/^\uFEFF/, '');
     return cleaned.trim();
   }
@@ -39,7 +44,6 @@ export class FileParserService {
 
         case 'docx':
           try {
-            const mammoth = require('mammoth');
             const result = await mammoth.extractRawText({
               buffer: file.buffer,
             });
@@ -54,7 +58,6 @@ export class FileParserService {
         case 'xlsx':
         case 'xls':
           try {
-            const XLSX = require('xlsx');
             const workbook = XLSX.read(file.buffer, { type: 'buffer' });
             let text = '';
             workbook.SheetNames.forEach((sheetName) => {
@@ -91,7 +94,7 @@ export class FileParserService {
       }
 
       this.logger.log(
-        `File parsed: ${file.originalname} (${cleanedContent.length} chars)`,
+        `✅ File parsed: ${file.originalname} (${cleanedContent.length} chars)`,
       );
       return cleanedContent;
     } catch (error) {

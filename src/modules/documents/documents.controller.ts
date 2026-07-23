@@ -1,3 +1,5 @@
+// src/modules/documents/documents.controller.ts
+// ✅ شيل .js من الآخر
 import {
   Controller,
   Get,
@@ -25,7 +27,6 @@ export class DocumentsController {
     @Query('sourceType') sourceType?: SourceType,
     @Query('cohort') cohort?: string,
   ) {
-
     try {
       const result = await this.documentsService.findAll({
         skip: skip ? parseInt(skip) : undefined,
@@ -35,9 +36,11 @@ export class DocumentsController {
       });
 
       const count = Array.isArray(result) ? result.length : 0;
+      console.log('📄 Documents found:', count);
 
       return result || [];
     } catch (error) {
+      console.error('❌ Error in findAll:', error);
       return [];
     }
   }

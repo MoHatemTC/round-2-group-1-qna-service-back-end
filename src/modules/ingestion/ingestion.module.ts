@@ -3,7 +3,7 @@ import { IngestionController } from './ingestion.controller';
 import { IngestionService } from './ingestion.service';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
 import { DocumentsModule } from '../documents/documents.module';
-import { FileParserService } from '../../../src/common/prisma/services/file-parser.service';
+import { FileParserService } from '../../common/services/file-parser.service';
 
 @Module({
   imports: [EmbeddingsModule, DocumentsModule],

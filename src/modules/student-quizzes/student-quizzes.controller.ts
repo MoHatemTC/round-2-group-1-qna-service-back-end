@@ -1,27 +1,38 @@
+// src/modules/student-quizzes/student-quizzes.controller.ts
 import {
-  BadRequestException,
   Controller,
   Get,
-  Headers,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
-import { StudentQuizzesService } from './student-quizzes.service';
+import { StudentQuizzesService } from './student-quizzes.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 
-@Controller('student/quizzes')
+@Controller('student-quizzes')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class StudentQuizzesController {
   constructor(private readonly studentQuizzesService: StudentQuizzesService) {}
 
-  @Get()
-  getDashboard(@Headers('x-student-id') studentId?: string) {
-    // TODO(Sprint 2 / Auth): replace with real session/JWT from Slot 1.
-    // x-student-id + MOCK_STUDENT_ID is a dev-only shim — not production auth.
-    const resolvedStudentId = studentId ?? process.env.MOCK_STUDENT_ID;
+  @Get('dashboard')
+  @Roles('USER')
+  async getDashboard(@Request() req) {
+    return this.studentQuizzesService.getStudentDashboard(req.user.userId);
+  }
 
-    if (!resolvedStudentId) {
-      throw new BadRequestException(
-        'Missing student id. Send x-student-id header or set MOCK_STUDENT_ID.',
-      );
-    }
+  @Post(':quizId/enroll')
+  @Roles('USER')
+  async enroll(@Param('quizId') quizId: string, @Request() req) {
+    return this.studentQuizzesService.enrollStudent(req.user.userId, quizId);
+  }
 
-    return this.studentQuizzesService.getDashboard(resolvedStudentId);
+  @Get(':quizId/attempt')
+  @Roles('USER')
+  async getAttempt(@Param('quizId') quizId: string, @Request() req) {
+    return this.studentQuizzesService.getAttempt(req.user.userId, quizId);
   }
 }

@@ -1,10 +1,10 @@
+// src/common/prisma/prisma.service.ts
 import {
   Injectable,
   OnModuleInit,
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
-
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class PrismaService
 
   async onModuleInit() {
     await this.$connect();
-    this.logger.log('Connected to database');
+    this.logger.log('✅ Connected to database');
   }
 
   async onModuleDestroy() {

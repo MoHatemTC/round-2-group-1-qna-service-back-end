@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../common/prisma/prisma.service';
-import { EmbeddingsService } from '../../../modules/embeddings/embeddings.service';
-import { SearchDto } from '../dto/search.dto';
+import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { EmbeddingsService } from '../embeddings/embeddings.service.js';
+import { SearchDto } from './dto/search.dto.js';
 
 @Injectable()
 export class SearchService {

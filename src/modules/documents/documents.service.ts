@@ -1,3 +1,4 @@
+// src/modules/documents/documents.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SourceType } from '../../common/enums/source-type.enum';
@@ -15,10 +16,8 @@ export class DocumentsService {
     cohort?: string;
   }) {
     const { skip = 0, take = 50, sourceType, cohort } = params;
-
+    
     try {
-      this.logger.log('🔍 Executing findMany with params:', params);
-
       const documents = await this.prisma.document.findMany({
         skip,
         take,
@@ -35,40 +34,12 @@ export class DocumentsService {
           createdAt: 'desc',
         },
       });
-
+      
       this.logger.log(`✅ Found ${documents.length} documents`);
-
-      if (documents.length === 0) {
-        this.logger.warn(
-          'No documents found with filters, trying without filters...',
-        );
-        const allDocuments = await this.prisma.document.findMany({
-          orderBy: {
-            createdAt: 'desc',
-          },
-        });
-        this.logger.log(`📄 Total documents in DB: ${allDocuments.length}`);
-        return allDocuments;
-      }
-
       return documents;
     } catch (error) {
-      this.logger.error(`Error fetching documents: ${error.message}`);
-
-      try {
-        this.logger.log('🔄 Trying raw SQL query...');
-        const rawDocuments = await this.prisma.$queryRaw`
-          SELECT * FROM "documents"
-          ORDER BY "created_at" DESC
-        `;
-        this.logger.log(
-          ` Raw SQL found ${(rawDocuments as any[]).length} documents`,
-        );
-        return rawDocuments;
-      } catch (rawError) {
-        this.logger.error(`Raw SQL error: ${rawError.message}`);
-        return [];
-      }
+      this.logger.error(`❌ Error fetching documents: ${error.message}`);
+      return [];
     }
   }
 
@@ -84,12 +55,12 @@ export class DocumentsService {
           },
         },
       });
-
+      
       if (!document) {
         this.logger.warn(`Document with id ${id} not found`);
         return null;
       }
-
+      
       return document;
     } catch (error) {
       this.logger.error(`Error fetching document ${id}: ${error.message}`);
@@ -113,7 +84,7 @@ export class DocumentsService {
   async getStats() {
     try {
       const totalDocs = await this.prisma.document.count();
-
+      
       let totalChunks = 0;
       try {
         totalChunks = await this.prisma.chunk.count();
@@ -121,7 +92,7 @@ export class DocumentsService {
         this.logger.warn('Could not count chunks, using 0');
         totalChunks = 0;
       }
-
+      
       const sourceTypes = await this.prisma.$queryRaw`
         SELECT "sourceType", COUNT(*) as count
         FROM "documents"

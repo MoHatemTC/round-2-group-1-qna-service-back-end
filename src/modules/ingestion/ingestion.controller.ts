@@ -1,3 +1,4 @@
+// src/modules/ingestion/ingestion.controller.ts
 import {
   Controller,
   Post,
@@ -14,7 +15,7 @@ import { CreateDocumentDto } from '../documents/dto/create-document.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { FileParserService } from '../../common/prisma/services/file-parser.service';
+import { FileParserService } from '../../common/services/file-parser.service';
 import { SourceType } from '../../common/enums/source-type.enum';
 
 @Controller('ingestion')
@@ -75,7 +76,7 @@ export class IngestionController {
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       limits: {
-        fileSize: 50 * 1024 * 1024, 
+        fileSize: 50 * 1024 * 1024,
         files: 10,
       },
     }),

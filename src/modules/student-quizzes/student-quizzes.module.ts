@@ -1,9 +1,11 @@
+// src/modules/student-quizzes/student-quizzes.module.ts
 import { Module } from '@nestjs/common';
-import { StudentQuizzesService } from './student-quizzes.service';
-import { StudentQuizzesController } from './student-quizzes.controller';
+import { StudentQuizzesService } from './student-quizzes.service.js';
+import { StudentQuizzesController } from './student-quizzes.controller.js';
 
 @Module({
-  controllers: [StudentQuizzesController],
   providers: [StudentQuizzesService],
+  controllers: [StudentQuizzesController],
+  exports: [StudentQuizzesService],
 })
 export class StudentQuizzesModule {}

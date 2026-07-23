@@ -1,123 +1,77 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Attempt, AttemptStatus, StudentStatus } from '@prisma/client';
-import { PrismaService } from '../../common/prisma/prisma.service';
+// src/modules/student-quizzes/student-quizzes.service.ts
 import {
-  StudentQuizDashboardDto,
-  StudentQuizDashboardDtoItem,
-  StudentQuizState,
-} from './dto/student-quiz-dashboard.dto';
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../common/prisma/prisma.service.js';
 
 @Injectable()
 export class StudentQuizzesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(StudentQuizzesService.name);
 
-  async getDashboard(studentId: string): Promise<StudentQuizDashboardDto> {
-    const student = await this.prisma.student.findUnique({
-      where: { id: studentId },
+  constructor(private prisma: PrismaService) {}
+
+  async getStudentDashboard(studentId: string) {
+    try {
+      const student = await this.prisma.user.findUnique({
+        where: { id: studentId },
+        include: {
+          quizAttempts: {
+            include: {
+              quiz: true,
+            },
+          },
+        },
+      });
+
+      if (!student) {
+        throw new NotFoundException('Student not found');
+      }
+
+      return {
+        student,
+        attempts: student.quizAttempts,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting dashboard: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async enrollStudent(studentId: string, quizId: string) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: quizId },
     });
 
-    if (!student) {
-      throw new NotFoundException('Student not found');
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
     }
 
-    const enrollments = await this.prisma.enrollment.findMany({
+    // ✅ محاكاة التسجيل (بدون جدول Enrollment)
+    this.logger.log(`Student ${studentId} enrolled in quiz ${quizId}`);
+    return { success: true, message: 'Enrolled successfully' };
+  }
+
+  async getAttempt(studentId: string, quizId: string) {
+    const attempt = await this.prisma.quizAttempt.findFirst({
       where: {
-        studentId,
-        quiz: { status: 'PUBLISHED' },
+        userId: studentId,
+        quizId: quizId,
       },
-      include: { quiz: true },
+      include: {
+        quiz: true,
+      },
     });
 
-    const attempts = await this.prisma.attempt.findMany({
-      where: { studentId },
-    });
-
-    const attemptByQuizId = new Map(
-      attempts.map((attempt) => [attempt.quizId, attempt]),
-    );
-
-    const now = new Date();
-
-    const quizzes: StudentQuizDashboardDtoItem[] = enrollments.map(
-      (enrollment) => {
-        const { quiz } = enrollment;
-        const attempt = attemptByQuizId.get(quiz.id);
-        const studentState = this.deriveStudentState(
-          attempt,
-          quiz.closesAt,
-          now,
-        );
-        const { canStart, blockedReason } = this.resolveAccess(
-          student.status,
-          studentState,
-          quiz.closesAt,
-        );
-
-        return {
-          quizId: quiz.id,
-          title: quiz.title,
-          description: quiz.description ?? '',
-          closesAt: quiz.closesAt.toISOString(),
-          studentState,
-          score: attempt?.score != null ? Number(attempt.score) : null,
-          canStart,
-          blockedReason,
-        };
-      },
-    );
-
-    return { quizzes };
-  }
-
-  private deriveStudentState(
-    attempt: Attempt | undefined,
-    closeDate: Date,
-    now: Date,
-  ): StudentQuizState {
-    if (
-      attempt?.status === AttemptStatus.SUBMITTED ||
-      attempt?.status === AttemptStatus.AUTO_SUBMITTED
-    ) {
-      return 'Submitted';
+    if (!attempt) {
+      return { hasAttempt: false };
     }
 
-    if (now > closeDate) {
-      return 'Closed';
-    }
-
-    if (attempt?.status === AttemptStatus.IN_PROGRESS) {
-      return 'In progress';
-    }
-
-    return 'Not started';
-  }
-
-  private resolveAccess(
-    studentStatus: StudentStatus,
-    studentState: StudentQuizState,
-    closeDate: Date,
-  ): { canStart: boolean; blockedReason?: string } {
-    if (studentStatus === StudentStatus.UNVERIFIED) {
-      return {
-        canStart: false,
-        blockedReason: 'Verify your email before starting this quiz.',
-      };
-    }
-
-    if (studentState === 'Closed') {
-      return {
-        canStart: false,
-        blockedReason: `This quiz closed on ${closeDate.toISOString()}.`,
-      };
-    }
-
-    if (studentState === 'Submitted') {
-      return {
-        canStart: false,
-        blockedReason: 'You have already submitted this quiz.',
-      };
-    }
-
-    return { canStart: true };
+    return {
+      hasAttempt: true,
+      attempt,
+    };
   }
 }

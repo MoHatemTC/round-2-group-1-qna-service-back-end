@@ -1,3 +1,4 @@
+// src/modules/quizzes/quizzes.service.ts
 import {
   Injectable,
   Logger,
@@ -10,7 +11,6 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { SubmitAttemptDto } from './dto/submit-attempt.dto';
 import { QuizStatus } from '../../common/enums/quiz-status.enum';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class QuizzesService {
@@ -61,17 +61,20 @@ export class QuizzesService {
   async update(id: string, dto: UpdateQuizDto) {
     const quiz = await this.findOne(id);
 
+    // ✅ Only draft quizzes can be edited
     if (quiz.status !== QuizStatus.DRAFT) {
       throw new ForbiddenException('Only draft quizzes can be edited');
     }
 
     const updateData: any = {};
 
+    // ✅ Update fields only if provided
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.duration !== undefined) updateData.duration = dto.duration;
     if (dto.passScore !== undefined) updateData.passScore = dto.passScore;
 
+    // ✅ Validate dates if provided
     if (dto.openDate !== undefined || dto.closeDate !== undefined) {
       const openDate = dto.openDate ? new Date(dto.openDate) : quiz.openDate;
       const closeDate = dto.closeDate
@@ -84,8 +87,10 @@ export class QuizzesService {
       if (dto.closeDate !== undefined) updateData.closeDate = closeDate;
     }
 
+    // ✅ Handle publish helper
     if (dto.publish === true) {
       updateData.status = QuizStatus.PUBLISHED;
+      this.logger.log(`📤 Publishing quiz: ${id}`);
     }
 
     return this.prisma.quiz.update({
@@ -186,14 +191,8 @@ export class QuizzesService {
   }
 
   async checkStudentAccess(userId: string, quizId: string): Promise<boolean> {
-    try {
-      return true;
-    } catch (error) {
-      this.logger.warn(
-        `Student access check failed for user ${userId}, quiz ${quizId}: ${error.message}`,
-      );
-      return true;
-    }
+    // TODO: Replace with actual integration from Slot 4, Sprint 1
+    return true;
   }
 
   async getCurrentAttempt(quizId: string, userId: string) {
@@ -279,6 +278,7 @@ export class QuizzesService {
       data: {
         completedAt: new Date(),
         score: finalScore,
+        tabActivity: dto.tabActivity || undefined,
       },
       include: {
         quiz: {
@@ -308,6 +308,7 @@ export class QuizzesService {
       passed,
       passScore: completedAttempt.quiz.passScore || 0,
       title: completedAttempt.quiz.title,
+      tabActivity: completedAttempt.tabActivity,
     };
   }
 }
