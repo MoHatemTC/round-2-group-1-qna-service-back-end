@@ -105,7 +105,8 @@ model QuizAttempt {
   startedAt   DateTime @default(now())
   completedAt DateTime?
   score       Int?
-  
+  tabActivity Json?    @db.JsonB
+
   quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Restrict)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
