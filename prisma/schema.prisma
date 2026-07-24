@@ -1,154 +1,116 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ==========================================
-// USER & ENROLLMENT MODELS
-// ==========================================
-
 model Student {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
-  email       String        @unique
+  email       String       @unique
   status      StudentStatus @default(VERIFIED)
   enrollments Enrollment[]
   attempts    Attempt[]
 }
-
-model Enrollment {
-  quizId    String  @db.Uuid
-  studentId String  @db.Uuid
-  quiz      Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
+model Attempt { 
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId    String   @db.Uuid
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId String   @db.Uuid
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startedAt DateTime @default(now()) @map("started_at")
+  submittedAt DateTime? @map("submitted_at")
+  status      AttemptStatus @default(IN_PROGRESS)
+  attemptAnswers     Json?        @db.JsonB
+  score       Decimal?
+  questionSnapshot   Json?        @db.JsonB
   @@unique([quizId, studentId])
 }
-
-// ==========================================
-// QUIZ & QUESTION MODELS (Slot 3 Contract)
-// ==========================================
-
+model Enrollment {
+  quizId      String           @db.Uuid
+  studentId   String           @db.Uuid
+  quiz        Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  @@unique([quizId, studentId])
+}
 model Quiz {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String
   description String?
-  createdAt   DateTime     @default(now()) @map("created_at")
-  closesAt    DateTime
-  status      QuizStatus   @default(DRAFT)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  openDate    DateTime       @default(now()) @map("open_date")
+  duration    Int            @default(60)
+  closesAt    DateTime       @map("close_at")
+  passScore   Decimal?       @map("pass_score") @db.Decimal(5, 2)
+  status      QuizStatus     @default(DRAFT)
   questions   Question[]
   enrollments Enrollment[]
   attempts    Attempt[]
 }
-
 model Question {
-  id              String   @id @default(cuid())
-  quizId          String   @db.Uuid
-  text            String
-  options         Json
-  correctOptionId String
-  points          Int      @default(1)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
-  @@index([quizId])
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId    String   @db.Uuid
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text      String
+  isHidden  Boolean  @default(false) @map("is_hidden")
+  points    Decimal  @default(1)  @db.Decimal(7, 2)
+  type      QuestionType  @default(MCQ)
+  options     QuizOption[]
 }
-
-// ==========================================
-// ATTEMPT & ANSWER MODELS (Slot 5 Contract)
-// ==========================================
-
-model Attempt {
-  id               String        @id @default(cuid())
-  studentId        String        @db.Uuid
-  quizId           String        @db.Uuid
-  status           AttemptStatus @default(IN_PROGRESS)
-  startedAt        DateTime      @default(now()) @map("started_at")
-  submittedAt      DateTime?     @map("submitted_at")
-  questionSnapshot Json?
-  score            Json?
-  answers          Answer[]
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  quiz    Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
-  @@unique([quizId, studentId])
-  @@index([studentId, quizId])
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  OPEN_ENDED
 }
-
-model Answer {
-  id               String   @id @default(cuid())
-  attemptId        String
-  questionId       String
-  selectedOptionId String?
-  answeredAt       DateTime @default(now())
-
-  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-
-  @@unique([attemptId, questionId])
+model QuizOption {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId    String   @db.Uuid
+  question      Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option    String
+  isCorrect Boolean  @default(false)
 }
-
-// ==========================================
-// RAG & DOCUMENTATION MODELS
-// ==========================================
-
 model Document {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title      String
-  source     String
-  sourceType SourceType
-  cohort     String?    @db.VarChar(100)
-  metadata   Json?      @db.JsonB
-  content    String?    @db.Text
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-
-  chunks Chunk[]
-
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  source      String
+  sourceType  SourceType
+  cohort      String?    @db.VarChar(100)
+  metadata    Json?      @db.JsonB
+  content     String?    @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  chunks      Chunk[]
   @@unique([source, title])
   @@map("documents")
 }
-
 model Chunk {
-  id              String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  documentId      String                       @db.Uuid
-  content         String                       @db.Text
-  contentHash     String                       @unique @db.VarChar(64)
-  embedding       Json?                        @db.JsonB
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String   @db.Uuid
+  content      String   @db.Text
+  contentHash  String   @unique @db.VarChar(64)
+  embedding    Json?    @db.JsonB
   embeddingVector Unsupported("vector(1536)")?
-  chunkIndex      Int                          @default(0)
-  metadata        Json?                        @db.JsonB
-
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
+  chunkIndex   Int      @default(0)
+  metadata     Json?    @db.JsonB
+  
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   @@unique([documentId, chunkIndex])
   @@index([contentHash])
   @@index([documentId])
   @@map("chunks")
 }
-
-// ==========================================
-// ENUMS
-// ==========================================
-
 enum StudentStatus {
-  VERIFIED
+  VERIFIED  
   UNVERIFIED
 }
-
 enum QuizStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
 }
-
 enum SourceType {
   FAQ
   ONBOARDING
@@ -156,7 +118,6 @@ enum SourceType {
   PROGRAM_DOC
   OTHER
 }
-
 enum AttemptStatus {
   IN_PROGRESS
   SUBMITTED
