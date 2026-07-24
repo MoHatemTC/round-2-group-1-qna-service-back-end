@@ -1,62 +1,71 @@
-# Answer Format Contract — Slot 3 (Questions) ⇄ Slot 5 (Attempts)
+# Attempt Scoring — Contract Notes (revised against the real schema)
 
-Agree this on day one. Everything below is already implemented against this shape;
-if either slot needs to change it, both owners need to be in the room.
+The original version of this doc assumed a shape (`options[].id` / `correctOptionId`
+strings) that isn't what Slot 3 actually built. Real schema:
 
-## Question (Slot 3 owns this)
+```prisma
+model Question {
+  id       String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId   String       @db.Uuid
+  text     String
+  points   Decimal      @db.Decimal(7, 2)
+  type     QuestionType @default(MCQ)   // MCQ | TRUE_FALSE | OPEN_ENDED
+  options  QuizOption[]
+}
 
-```json
-{
-  "id": "cuid-string",
-  "quizId": "string",
-  "text": "string",
-  "options": [
-    { "id": "a", "text": "string" },
-    { "id": "b", "text": "string" }
-  ],
-  "correctOptionId": "a",
-  "points": 1
+model QuizOption {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String   @db.Uuid
+  option     String
+  isCorrect  Boolean  @default(false)
 }
 ```
 
-`options` is stored as a Prisma `Json` column. **This is the main thing that
-changed from a Mongoose version of this contract: Prisma enforces nothing about
-its internal shape.** There is no schema-level guarantee that `options` has at
-least 2 entries, that ids are unique, or that `correctOptionId` matches one of
-them — the database will happily store garbage. Call
-`services/validateQuestion.js` before every create/update to get that guarantee
-back at the application layer.
+## Good news: the original day-one id-format risk mostly goes away
 
-Rules Slot 3 must not break without warning Slot 5:
-- `options[].id` is a short stable string ("a"/"b"/"c"/"d"), not an array index.
-  Reordering options must not change their `id`s.
-- `correctOptionId` always matches one of `options[].id`.
-- `points` defaults to 1 if omitted.
+There's no separate string id scheme to keep in sync — `QuizOption.id` is a real
+Postgres UUID, and correctness is just "does the row the student picked have
+`isCorrect = true`." Nothing to drift between Slot 3 and Slot 5; the foreign key
+*is* the agreement.
 
-## Attempt answer (Slot 5 owns this, Slot 3 just needs to know the shape)
+## Two things that are still open, flagged rather than assumed
 
-Each answer the student picks is one row:
+**1. `OPEN_ENDED` questions have no correct-answer field.**
+There's nowhere in `Question`/`QuizOption` to store what a correct free-text
+answer is. Current behavior: these are excluded from `rawScore`/`maxScore`
+entirely, and counted in a separate `ungradedCount` on the score result. This
+means a quiz that's all open-ended questions currently always scores 100%
+(0 out of 0) rather than 0% — because there's nothing to grade automatically
+yet. **If manual grading is planned for Sprint 2, `ungradedCount` is the signal
+to build on; if it's not planned, this needs a different decision.**
+
+**2. `Quiz.passScore` is assumed to be a percentage (0–100), matching `Attempt.score`.**
+Both are stored as the same unit in the current implementation. If `passScore`
+is meant to represent raw points instead, the `passed` comparison in
+`computeScore()` is wrong and needs to compare against `rawScore` instead of
+`percentage`. Worth a one-line confirmation from whoever owns `Quiz`.
+
+## One dependency this PR doesn't cover: `AUTO_SUBMITTED`
+
+`AttemptStatus` includes `AUTO_SUBMITTED` (presumably for quizzes closing on a
+timer) alongside `SUBMITTED`. This PR's `submitAttempt()` only claims attempts
+that are `IN_PROGRESS`. If something else in the system flips status straight
+to `AUTO_SUBMITTED` (a cron job, a scheduled task) **without** going through
+`submitAttempt()`, that attempt will never get a `questionSnapshot` or a score
+— `recomputeStoredScore()` will just time out waiting for one. If an
+auto-submit flow exists or is planned, it needs to call the same scoring path
+this PR adds, not bypass it.
+
+## Answer storage shape (for reference)
+
+`Attempt.attemptAnswers` (JSONB) is written as:
 
 ```json
-{ "attemptId": "cuid", "questionId": "cuid", "selectedOptionId": "b", "answeredAt": "ISODate" }
+{
+  "<questionId>": { "selectedOptionId": "<quizOptionId-or-null>", "answeredAt": "ISODate" }
+}
 ```
 
-- `selectedOptionId` is the **option id string**, matching `options[].id` above —
-  never an index, never the option text.
-- `null` / missing row both mean "not answered" and score as wrong.
-  Scoring never errors on an unanswered question.
-
-## Why this matters
-
-At submit time, Slot 5's Attempt takes a full copy of the relevant Questions
-(`questionSnapshot`, itself a `Json` column) and scores the student's answers
-against **that copy**, not the live Question table. So:
-
-- If Slot 3 edits or deletes a question after a student has submitted,
-  already-submitted scores don't change.
-- If the `selectedOptionId` format and the `correctOptionId` format ever
-  drift apart (e.g. one side switches to numeric indices), every score
-  breaks silently — comparisons just always miss, no error to catch it. This
-  is the actual day-four risk: agree the id format now, and validate it at
-  write time, rather than after both sides have built against different
-  assumptions.
+Assumes single-select per question (`selectedOptionId` is one value, not an
+array). If multi-select MCQs are ever needed, this shape has to change to an
+array, and scoring logic changes with it.
