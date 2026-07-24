@@ -59,11 +59,13 @@ model Question {
   type      QuestionType  @default(MCQ)
   options     QuizOption[]
 }
+
 enum QuestionType {
   MCQ
   TRUE_FALSE
   OPEN_ENDED
 }
+
 model QuizOption {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   questionId    String   @db.Uuid
